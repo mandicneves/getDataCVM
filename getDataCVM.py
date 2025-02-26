@@ -1,11 +1,38 @@
-from typing import Literal
 import requests
 import zipfile
 import pandas as pd
 from io import BytesIO
+from typing import Literal
+from bs4 import BeautifulSoup
 
 
 class DataCVM:
+    def find_dataset(self, tipo):
+        r = requests.get("https://dados.cvm.gov.br/dataset/cia_aberta-doc-fre")
+        html = BeautifulSoup(r.text, "html.parser")
+        li_strong = [li for li in html.find_all("li") if li.find("strong")]
+        dataset = dict()
+        for li in li_strong:
+            texto = li.get_text(strip=True)
+
+            if texto.startswith(tipo.removesuffix("aberta")):
+
+                limite_superior = texto.find(":")
+                texto = texto[:limite_superior].replace("(anteriormente", "")
+
+                if tipo in texto:
+                    chave = texto.removeprefix(tipo + "_")
+                    valor = f"{texto}_" + "{ano}.csv"
+
+                else:
+                    chave = texto.removeprefix(tipo.removesuffix("aberta"))
+                    valor = f"{tipo}_{chave}_" + "{ano}.csv"
+
+                dataset[chave] = valor
+
+        # return dict(sorted(dataset.items()))
+        return dataset
+
     def download_data(
         self, inicio: int, fim: int, url_base: str, zip_template: str, csv_template: str
     ) -> pd.DataFrame:
@@ -104,27 +131,24 @@ class FCA(DataCVM):
         fim: int,
     ) -> pd.DataFrame:
         """
-        Obtém os dados do dataset desejado para os anos informados.
+        Obtém documentos referentes ao Formulário Cadastral (é um documento eletrônico,
+        de encaminhamento periódico e eventual, previsto no artigo 22, inciso I, da Resolução CVM nº 80/22)
+
+        ## Parâmetros
+
+        - **dataset**: string contendo um dos valores em `self.datasets`.
+        - **inicio**: inteiro referente ao ano inicial (inclusivo).
+        - **fim**: inteiro referente ao ano final (exclusivo).
         """
         return super().obter_dados(dataset, inicio, fim)
 
 
 class FRE(DataCVM):
     def __init__(self):
+        self.url_dataset: str = "https://dados.cvm.gov.br/dataset/cia_aberta-doc-fre"
         self.url_base: str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/FRE/DADOS/"
         self.zip_template: str = "fre_cia_aberta_{ano}.zip"
-        self.datasets: dict[str, str] = {
-            "responsavel": "fre_cia_responsavel_{ano}.csv",
-            "auditor": "fre_cia_auditor_{ano}.csv",
-            "auditor_responsavel": "fre_cia_auditor_responsavel_{ano}.csv",
-            "informacao_financeira": "fre_cia_informacao_financeira_{ano}.csv",
-            "distribuicao_dividendos": "distribuicao_dividendos_{ano}.csv",
-            "distribuicao_dividendos_classe_acao": "distribuicao_dividendos_classe_acao_{ano}.csv",
-            "endividamento": "endividamento_{ano}.csv",
-            "obrigacao": "obrigacao_{ano}.csv",
-            "emissor": "emissor_{ano}.csv",
-            "grupo_economico_reestruturacao": "grupo_economico_reestruturacao_{ano}.csv",
-        }
+        self.datasets: dict[str, str] = self.find_dataset("fre_cia_aberta")
 
 
 class IPE(DataCVM):
