@@ -8,7 +8,12 @@ from bs4 import BeautifulSoup
 
 class DataCVM:
     def find_dataset(self, tipo):
-        r = requests.get("https://dados.cvm.gov.br/dataset/cia_aberta-doc-fre")
+
+        if "fca" in tipo:
+            limitador = "("
+        elif "fre" in tipo:
+            limitador = ":"
+        r = requests.get(self.url_dataset)
         html = BeautifulSoup(r.text, "html.parser")
         li_strong = [li for li in html.find_all("li") if li.find("strong")]
         dataset = dict()
@@ -17,7 +22,7 @@ class DataCVM:
 
             if texto.startswith(tipo.removesuffix("aberta")):
 
-                limite_superior = texto.find(":")
+                limite_superior = texto.find(limitador)
                 texto = texto[:limite_superior].replace("(anteriormente", "")
 
                 if tipo in texto:
@@ -69,9 +74,9 @@ class DataCVM:
             pd.concat(lista_dados, ignore_index=True) if lista_dados else pd.DataFrame()
         )
 
-    def obter_dados(
+    def get_data(
         self,
-        dataset: str,  # Aqui, usaremos o Literal nas classes filhas
+        dataset: list[str],  # Aqui, usaremos o Literal nas classes filhas
         inicio: int,
         fim: int,
     ) -> pd.DataFrame:
@@ -100,21 +105,12 @@ class DataCVM:
 
 class FCA(DataCVM):
     def __init__(self):
+        self.url_dataset: str = "https://dados.cvm.gov.br/dataset/cia_aberta-doc-fca"
         self.url_base: str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/FCA/DADOS/"
         self.zip_template: str = "fca_cia_aberta_{ano}.zip"
-        self.datasets: dict[str, str] = {
-            "auditor": "fca_cia_aberta_auditor_{ano}.csv",
-            "canal_divulgacao": "fca_cia_aberta_canal_divulgacao_{ano}.csv",
-            "departamento_acionistas": "fca_cia_aberta_departamento_acionistas_{ano}.csv",
-            "dri": "fca_cia_aberta_dri_{ano}.csv",
-            "endereco": "fca_cia_aberta_endereco_{ano}.csv",
-            "escriturador": "fca_cia_aberta_escriturador_{ano}.csv",
-            "geral": "fca_cia_aberta_geral_{ano}.csv",
-            "pais_estrangeiro_negociacao": "fca_cia_aberta_pais_estrangeiro_negociacao_{ano}.csv",
-            "valor_mobiliario": "fca_cia_aberta_valor_mobiliario_{ano}.csv",
-        }
+        self.datasets: dict[str, str] = self.find_dataset("fca_cia_aberta")
 
-    def obter_dados(
+    def get_data(
         self,
         dataset: Literal[
             "auditor",
@@ -140,7 +136,7 @@ class FCA(DataCVM):
         - **inicio**: inteiro referente ao ano inicial (inclusivo).
         - **fim**: inteiro referente ao ano final (exclusivo).
         """
-        return super().obter_dados(dataset, inicio, fim)
+        return super().get_data(dataset, inicio, fim)
 
 
 class FRE(DataCVM):
@@ -149,6 +145,83 @@ class FRE(DataCVM):
         self.url_base: str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/FRE/DADOS/"
         self.zip_template: str = "fre_cia_aberta_{ano}.zip"
         self.datasets: dict[str, str] = self.find_dataset("fre_cia_aberta")
+
+    def get_data(
+        self,
+        dataset: Literal[
+            "responsavel",
+            "auditor",
+            "auditor_responsavel",
+            "informacao_financeira",
+            "distribuicao_dividendos",
+            "distribuicao_dividendos_classe_acao",
+            "endividamento",
+            "obrigacao",
+            "historico_emissor",
+            "grupo_economico_reestruturacao",
+            "ativo_imobilizado",
+            "ativo_intangivel",
+            "participacao_sociedade",
+            "participacao_sociedade_valorizacao_acao",
+            "administrador_membro_conselho_fiscal",
+            "membro_comite",
+            "relacao_familiar",
+            "relacao_subordinacao",
+            "remuneracao_total_orgao",
+            "remuneracao_maxima_minima_media",
+            "posicao_acionaria",
+            "posicao_acionaria_classe_acao",
+            "distribuicao_capital",
+            "distribuicao_capital_classe_acao",
+            "transacao_parte_relacionada",
+            "capital_social",
+            "capital_social_classe_acao",
+            "capital_social_titulo_conversivel",
+            "capital_social_aumento",
+            "capital_social_aumento_classe_acao",
+            "capital_social_desdobramento",
+            "capital_social_desdobramento_classe_acao",
+            "capital_social_reducao",
+            "capital_social_reducao_classe_acao",
+            "direito_acao",
+            "volume_valor_mobiliario",
+            "outro_valor_mobiliario",
+            "titular_valor_mobiliario",
+            "mercado_estrangeiro",
+            "titulo_exterior",
+            "plano_recompra",
+            "plano_recompra_classe_acao",
+            "valor_mobiliario_tesouraria_movimentacao",
+            "valor_mobiliario_tesouraria_ultimo_exercicio",
+            "politica_negociacao",
+            "politica_negociacao_cargo",
+            "administrador_declaracao_genero",
+            "administrador_declaracao_raca",
+            "remuneracao_variavel",
+            "remuneracao_acao",
+            "acao_entregue",
+            "empregado_posicao_declaracao_genero",
+            "empregado_posicao_declaracao_raca",
+            "empregado_posicao_faixa_etaria",
+            "empregado_posicao_local",
+            "empregado_local_declaracao_genero",
+            "empregado_local_declaracao_raca",
+            "empregado_local_faixa_etaria",
+        ],
+        inicio: int,
+        fim: int,
+    ) -> pd.DataFrame:
+        """
+        Obtém documentos referentes ao Formulário Cadastral (é um documento eletrônico,
+        de encaminhamento periódico e eventual, previsto no artigo 22, inciso I, da Resolução CVM nº 80/22)
+
+        ## Parâmetros
+
+        - **dataset**: string contendo um dos valores em `self.datasets`.
+        - **inicio**: inteiro referente ao ano inicial (inclusivo).
+        - **fim**: inteiro referente ao ano final (exclusivo).
+        """
+        return super().get_data(dataset, inicio, fim)
 
 
 class IPE(DataCVM):
