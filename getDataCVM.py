@@ -111,7 +111,20 @@ class FCA(DataCVM):
 
 class FRE(DataCVM):
     def __init__(self):
-        self.url_base = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/FRE/DADOS/"
+        self.url_base: str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/FRE/DADOS/"
+        self.zip_template: str = "fre_cia_aberta_{ano}.zip"
+        self.datasets: dict[str, str] = {
+            "responsavel": "fre_cia_responsavel_{ano}.csv",
+            "auditor": "fre_cia_auditor_{ano}.csv",
+            "auditor_responsavel": "fre_cia_auditor_responsavel_{ano}.csv",
+            "informacao_financeira": "fre_cia_informacao_financeira_{ano}.csv",
+            "distribuicao_dividendos": "distribuicao_dividendos_{ano}.csv",
+            "distribuicao_dividendos_classe_acao": "distribuicao_dividendos_classe_acao_{ano}.csv",
+            "endividamento": "endividamento_{ano}.csv",
+            "obrigacao": "obrigacao_{ano}.csv",
+            "emissor": "emissor_{ano}.csv",
+            "grupo_economico_reestruturacao": "grupo_economico_reestruturacao_{ano}.csv",
+        }
 
 
 class IPE(DataCVM):
