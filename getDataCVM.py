@@ -2,7 +2,7 @@ import requests
 import zipfile
 import pandas as pd
 from io import BytesIO
-from typing import Dict, Any, List, Union, Literal
+from typing import Dict, Any, List, Literal
 from bs4 import BeautifulSoup
 
 
