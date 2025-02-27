@@ -365,7 +365,67 @@ class ICBGC(DataCVM):
 
 class DFP(DataCVM):
     def __init__(self):
-        self.base_url = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/DADOS/"
+        self.base_url: str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/DADOS/"
+        self.zip_template: str = "dfp_cia_aberta_{year}.zip"
+        self.datasets: dict[str, str] = {
+            "orgininal": "dfp_cia_aberta_{year}.csv",
+            "bpa_con": "dfp_cia_aberta_BPA_con_{year}.csv",
+            "bpa_ind": "dfp_cia_aberta_BPA_ind_{year}.csv",
+            "bpp_con": "dfp_cia_aberta_BPP_con_{year}.csv",
+            "bpp_ind": "dfp_cia_aberta_BPP_ind_{year}.csv",
+            "dfc_md_con": "dfp_cia_aberta_DFC_MD_con_{year}.csv",
+            "dfc_md_ind": "dfp_cia_aberta_DFC_MD_ind_{year}.csv",
+            "dfc_mi_con": "dfp_cia_aberta_DFC_MI_con_{year}.csv",
+            "dfc_mi_ind": "dfp_cia_aberta_DFC_MI_ind_{year}.csv",
+            "dmpl_con": "dfp_cia_aberta_DMPL_con_{year}.csv",
+            "dmpl_ind": "dfp_cia_aberta_DMPL_ind_{year}.csv",
+            "dra_con": "dfp_cia_aberta_DRA_con_{year}.csv",
+            "dra_ind": "dfp_cia_aberta_DRA_ind_{year}.csv",
+            "dre_con": "dfp_cia_aberta_DRE_con_{year}.csv",
+            "dre_ind": "dfp_cia_aberta_DRE_ind_{year}.csv",
+            "dva_con": "dfp_cia_aberta_DVA_con_{year}.csv",
+            "dva_ind": "dfp_cia_aberta_DVA_ind_{year}.csv",
+            "parecer": "dfp_cia_aberta_parecer_{year}.csv",
+        }
+
+    def get_data(
+        self,
+        dataset: Literal[
+            "bpa_con",
+            "bpa_ind",
+            "bpp_con",
+            "bpp_ind",
+            "dfc_md_con",
+            "dfc_md_ind",
+            "dfc_mi_con",
+            "dfc_mi_ind",
+            "dmpl_con",
+            "dmpl_ind",
+            "dra_con",
+            "dra_ind",
+            "dre_con",
+            "dre_ind",
+            "dva_con",
+            "dva_ind",
+            "orgininal",
+            "parecer",
+        ],
+        start: int,
+        end: int,
+    ) -> pd.DataFrame:
+        """
+        The Standardized Financial Statements Form (DFP) is an electronic document submitted periodically,
+        as required by Article 22, item IV, of CVM Resolution No. 80/22.
+
+        ## Parameters
+
+          1. **dataset:** a string containing one of the values in `self.datasets`.
+
+          2. **start:** an integer representing the starting year (inclusive) - minimum year 2010.
+
+          3. **end:** an integer representing the ending year (exclusive).
+        """
+        return super().get_data(dataset, start, end)
 
 
 class DadosCadastrais(DataCVM):
@@ -373,3 +433,21 @@ class DadosCadastrais(DataCVM):
         self.url = (
             "https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/cad_cia_aberta.csv"
         )
+
+
+import os
+
+d = {}
+for _, _, files in os.walk("/Users/mandicneves/Downloads/dfp_cia_aberta_2010/"):
+
+    for file in sorted(files):
+
+        chave = file.removeprefix("dfp_cia_aberta_").removesuffix("_2010.csv")
+        chave = "orgininal" if chave == "2010.csv" else chave
+
+        valor = file.replace("2010", "{year}")
+
+        d[chave.lower()] = valor
+
+d
+sorted(d.keys())
