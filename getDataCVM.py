@@ -122,10 +122,11 @@ class FCA(DataCVM):
         Retrieves documents related to the Cadastral Form (an electronic document, since 2010,
         for periodic and occasional submission, as provided in Article 22, Item I, of CVM Resolution No. 80/22).
 
-        Parameters:
-          - dataset: a string containing one of the values in `self.datasets`.
-          - start: an integer representing the starting year (inclusive) - minimum year.
-          - end: an integer representing the ending year (exclusive).
+        ## Parameters
+
+          - **dataset:** a string containing one of the values in `self.datasets`.
+          - **start:** an integer representing the starting year (inclusive) - minimum year 2010.
+          - **end:** an integer representing the ending year (exclusive).
         """
         return super().get_data(dataset, start, end)
 
@@ -207,10 +208,11 @@ class FRE(DataCVM):
         Retrieves documents related to the FRE Form (an electronic document, since 2010,
         for periodic and occasional submission, as provided in Article 22, Item I, of CVM Resolution No. 80/22).
 
-        Parameters:
-          - dataset: a string containing one of the values in `self.datasets`.
-          - start: an integer representing the starting year (inclusive) - minimum year: 2010.
-          - end: an integer representing the ending year (exclusive).
+        ## Parameters
+
+          - **dataset:** a string containing one of the values in `self.datasets`.
+          - **start:** an integer representing the starting year (inclusive) - minimum year 2010.
+          - **end:** an integer representing the ending year (exclusive).
         """
         return super().get_data(dataset, start, end)
 
@@ -227,34 +229,93 @@ class IPE(DataCVM):
         end: int,
     ) -> pd.DataFrame:
         """
-        O conjunto de dados disponibiliza os documentos não estruturados
-        de companhias (Periódicos e eventuais do IPE) entregues nos últimos cinco anos.
+        The dataset provides unstructured documents from companies
+        (periodic and occasional IPE filings) submitted in the last five years.
 
-        Parameters:
-          - start: an integer representing the starting year (inclusive) - minimum year: 2003.
-          - end: an integer representing the ending year (exclusive).
+        ## Parameters
+
+          - **start:** an integer representing the starting year (inclusive) - minimum year: 2003.
+          - **end:** an integer representing the ending year (exclusive).
         """
         return super().get_data("original", start, end)
 
 
 class ITR(DataCVM):
     def __init__(self):
-        self.url_base = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/ITR/DADOS/"
+        self.base_url: str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/ITR/DADOS/"
+        self.zip_template: str = "itr_cia_aberta_{year}.zip"
+        self.datasets: dict[str, str] = {
+            "original": "itr_cia_aberta_{year}.csv",
+            "bpa_con": "itr_cia_aberta_BPA_con_{year}.csv",
+            "bpa_ind": "itr_cia_aberta_BPA_ind_{year}.csv",
+            "bpp_con": "itr_cia_aberta_BPP_con_{year}.csv",
+            "bpp_ind": "itr_cia_aberta_BPP_ind_{year}.csv",
+            "dfc_md_con": "itr_cia_aberta_DFC_MD_con_{year}.csv",
+            "dfc_md_ind": "itr_cia_aberta_DFC_MD_ind_{year}.csv",
+            "dfc_mi_con": "itr_cia_aberta_DFC_MI_con_{year}.csv",
+            "dfc_mi_ind": "itr_cia_aberta_DFC_MI_ind_{year}.csv",
+            "dmpl_con": "itr_cia_aberta_DMPL_con_{year}.csv",
+            "dmpl_ind": "itr_cia_aberta_DMPL_ind_{year}.csv",
+            "dra_con": "itr_cia_aberta_DRA_con_{year}.csv",
+            "dra_ind": "itr_cia_aberta_DRA_ind_{year}.csv",
+            "dre_con": "itr_cia_aberta_DRE_con_{year}.csv",
+            "dre_ind": "itr_cia_aberta_DRE_ind_{year}.csv",
+            "dva_con": "itr_cia_aberta_DVA_con_{year}.csv",
+            "dva_ind": "itr_cia_aberta_DVA_ind_{year}.csv",
+            "parecer": "itr_cia_aberta_parecer_{year}.csv",
+        }
+
+    def get_data(
+        self,
+        dataset: Literal[
+            "bpa_con",
+            "bpa_ind",
+            "bpp_con",
+            "bpp_ind",
+            "dfc_md_con",
+            "dfc_md_ind",
+            "dfc_mi_con",
+            "dfc_mi_ind",
+            "dmpl_con",
+            "dmpl_ind",
+            "dra_con",
+            "dra_ind",
+            "dre_con",
+            "dre_ind",
+            "dva_con",
+            "dva_ind",
+            "original",
+            "parecer",
+        ],
+        start: int,
+        end: int,
+    ) -> pd.DataFrame:
+        """
+        The Quarterly Information Form (ITR) is an electronic document submitted periodically,
+        as required by Article 22, item V, of CVM Resolution No. 80/22.
+
+        ## Parameters
+
+          - **dataset:** a string containing one of the values in `self.datasets`.
+          - **start:** an integer representing the starting year (inclusive) - minimum year 2011.
+          - **end:** an integer representing the ending year (exclusive).
+        """
+        return super().get_data(dataset, start, end)
 
 
 class VLMO(DataCVM):
     def __init__(self):
-        self.url_base = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/VLMO/DADOS/"
+        self.base_url = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/VLMO/DADOS/"
 
 
 class ICBGC(DataCVM):
     def __init__(self):
-        self.url_base = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/ICBGC/DADOS/"
+        self.base_url = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/ICBGC/DADOS/"
 
 
 class DFP(DataCVM):
     def __init__(self):
-        self.url_base = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/DADOS/"
+        self.base_url = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/DADOS/"
 
 
 class DadosCadastrais(DataCVM):
