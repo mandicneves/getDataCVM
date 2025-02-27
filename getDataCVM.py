@@ -1,3 +1,19 @@
+"""
+getDataCVM.py
+
+This module provides classes to download and process data from CVM.
+Classes included:
+    - DataCVM: Base class with generic methods.
+    - RegData: For registration data.
+    - FCA: For FCA data.
+    - FRE: For FRE data.
+    - IPE: For IPE data.
+    - ITR: For ITR data.
+    - VLMO: For VLMO data.
+    - ICBGC: For ICBGC data.
+    - DFP: For DFP data.
+"""
+
 import requests
 import zipfile
 import pandas as pd
