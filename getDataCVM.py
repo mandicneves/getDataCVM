@@ -94,6 +94,24 @@ class DataCVM:
         )
 
 
+class RegData(DataCVM):
+    def __init__(self):
+        self.url = (
+            "https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/cad_cia_aberta.csv"
+        )
+
+    def get_data(self) -> pd.DataFrame:
+        """
+        Registration data of publicly traded companies, such as CNPJ, registration date, and registration status.
+        """
+        r = requests.get(self.url)
+        lines = r.text.split("\n")
+        lines = [line.split(";") for line in lines]
+        df = pd.DataFrame(data=lines[1:-1], columns=lines[0])
+
+        return df
+
+
 class FCA(DataCVM):
     def __init__(self):
         self.url_dataset: str = "https://dados.cvm.gov.br/dataset/cia_aberta-doc-fca"
@@ -426,28 +444,3 @@ class DFP(DataCVM):
           3. **end:** an integer representing the ending year (exclusive).
         """
         return super().get_data(dataset, start, end)
-
-
-class DadosCadastrais(DataCVM):
-    def __init__(self):
-        self.url = (
-            "https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/cad_cia_aberta.csv"
-        )
-
-
-import os
-
-d = {}
-for _, _, files in os.walk("/Users/mandicneves/Downloads/dfp_cia_aberta_2010/"):
-
-    for file in sorted(files):
-
-        chave = file.removeprefix("dfp_cia_aberta_").removesuffix("_2010.csv")
-        chave = "orgininal" if chave == "2010.csv" else chave
-
-        valor = file.replace("2010", "{year}")
-
-        d[chave.lower()] = valor
-
-d
-sorted(d.keys())
