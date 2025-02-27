@@ -2,57 +2,101 @@ import requests
 import zipfile
 import pandas as pd
 from io import BytesIO
-from typing import Literal
+from typing import Dict, Any, List, Union, Literal
 from bs4 import BeautifulSoup
 
 
 class DataCVM:
-    def find_dataset(self, data_type: str) -> dict[str, str]:
+    def find_dataset(self, data_type: str) -> Dict[str, str]:
+        """
+        Retrieves a dictionary of dataset keys and corresponding CSV filename templates from the CVM dataset page.
+
+        The method performs an HTTP GET request to self.url_dataset, parses the HTML to find list items
+        containing dataset information, and builds a dictionary mapping a dataset key to a CSV filename template.
+        An additional entry with key "original" is added.
+
+        Parameters:
+            data_type (str): The dataset type identifier (e.g., "fca_cia_aberta", "fre_cia_aberta").
+
+        Returns:
+            Dict[str, str]: A dictionary where each key is a dataset identifier (str) and each value is a CSV filename template.
+        """
         if "fca" in data_type:
-            delimiter = "("
+            delimiter: str = "("
         elif "fre" in data_type:
             delimiter = ":"
-        response = requests.get(self.url_dataset)
-        html = BeautifulSoup(response.text, "html.parser")
-        li_strong = [li for li in html.find_all("li") if li.find("strong")]
-        dataset = dict()
+        else:
+            delimiter = ":"  # valor padrão, se necessário
+
+        response: requests.Response = requests.get(self.url_dataset)
+        html: BeautifulSoup = BeautifulSoup(response.text, "html.parser")
+        li_strong: List[Any] = [li for li in html.find_all("li") if li.find("strong")]
+        dataset: Dict[str, str] = {}
+
         for li in li_strong:
-            text = li.get_text(strip=True)
+            text: str = li.get_text(strip=True)
             if text.startswith(data_type.removesuffix("aberta")):
-                upper_limit = text.find(delimiter)
+                upper_limit: int = text.find(delimiter)
                 text = text[:upper_limit].replace("(anteriormente", "")
                 if data_type in text:
-                    key = text.removeprefix(data_type + "_")
-                    value = f"{text}_" + "{year}.csv"
+                    key: str = text.removeprefix(data_type + "_")
+                    value: str = f"{text}_" + "{year}.csv"
                 else:
                     key = text.removeprefix(data_type.removesuffix("aberta"))
                     value = f"{data_type}_{key}_" + "{year}.csv"
                 dataset[key] = value
+
+        # Adiciona uma entrada padrão "original"
         dataset["original"] = data_type + "_{year}.csv"
         return dataset
 
     def download_data(
-        self, start: int, end: int, base_url: str, zip_template: str, csv_template: str
+        self,
+        start: int,
+        end: int,
+        base_url: str,
+        zip_template: str,
+        csv_template: str,
     ) -> pd.DataFrame:
         """
-        Downloads data for the specified years using templates for the ZIP and CSV filenames.
+        Downloads and concatenates data from CVM for a range of years using ZIP and CSV filename templates.
+
+        For each year in the range [start, end), the method constructs the ZIP filename using the zip_template,
+        downloads the ZIP file from base_url, extracts the CSV file specified by csv_template,
+        reads its content into a pandas DataFrame, and appends it to a list. Finally, all DataFrames are concatenated.
+
+        Parameters:
+            start (int): The starting year (inclusive).
+            end (int): The ending year (exclusive).
+            base_url (str): The base URL from which the ZIP files are downloaded.
+            zip_template (str): A string template for the ZIP filename (e.g., "fca_cia_aberta_{year}.zip").
+            csv_template (str): A string template for the CSV filename inside the ZIP (e.g., "fca_cia_aberta_geral_{year}.csv").
+
+        Returns:
+            pd.DataFrame: A DataFrame containing the concatenated data from all processed years.
         """
-        data_list = []
+        data_list: List[pd.DataFrame] = []
         for year in range(start, end):
-            zip_filename = zip_template.format(year=year)
-            url = base_url + zip_filename
+            zip_filename: str = zip_template.format(year=year)
+            url: str = base_url + zip_filename
 
             try:
-                r = requests.get(url, timeout=10)
+                r: requests.Response = requests.get(url, timeout=10)
                 r.raise_for_status()
 
                 with zipfile.ZipFile(BytesIO(r.content)) as zip_file:
-                    csv_filename = csv_template.format(year=year)
+                    csv_filename: str = csv_template.format(year=year)
                     with zip_file.open(csv_filename) as file:
-                        lines = file.readlines()
-                        lines = [line.strip().decode("ISO-8859-1") for line in lines]
-                        lines = [line.split(";") for line in lines]
-                        df = pd.DataFrame(data=lines[1:], columns=lines[0])
+                        lines: List[bytes] = file.readlines()
+                        decoded_lines: List[str] = [
+                            line.strip().decode("ISO-8859-1") for line in lines
+                        ]
+                        split_lines: List[List[str]] = [
+                            line.split(";") for line in decoded_lines
+                        ]
+                        df: pd.DataFrame = pd.DataFrame(
+                            data=split_lines[1:], columns=split_lines[0]
+                        )
                         data_list.append(df)
                         print(f"Finished reading data for year {year}.")
 
@@ -72,15 +116,24 @@ class DataCVM:
         end: int,
     ) -> pd.DataFrame:
         """
-        Generic method to retrieve data. Subclasses must define:
-          - self.base_url
-          - self.zip_template
-          - self.datasets (a dictionary with the available dataset keys)
+        Generic method to retrieve data for a specified dataset over a range of years.
+
+        Subclasses must define the following attributes:
+            - self.base_url: The base URL for downloading data.
+            - self.zip_template: The ZIP filename template.
+            - self.datasets: A dictionary mapping dataset keys to CSV filename templates.
 
         Parameters:
-          - dataset: name of the dataset to download.
-          - start: starting year (inclusive).
-          - end: ending year (exclusive).
+            dataset (str): The key of the dataset to download.
+            start (int): The starting year (inclusive).
+            end (int): The ending year (exclusive).
+
+        Returns:
+            pd.DataFrame: A DataFrame containing the concatenated data.
+
+        Raises:
+            AttributeError: If the subclass does not define the 'datasets' attribute.
+            ValueError: If the provided dataset key is not found in self.datasets.
         """
         if not hasattr(self, "datasets"):
             raise AttributeError("Attribute 'datasets' not defined in the class.")
@@ -88,36 +141,46 @@ class DataCVM:
             raise ValueError(
                 f"Dataset '{dataset}' not found. Choose from: {list(self.datasets.keys())}"
             )
-        csv_template = self.datasets[dataset]
+        csv_template: str = self.datasets[dataset]
         return self.download_data(
             start, end, self.base_url, self.zip_template, csv_template
         )
 
 
 class RegData(DataCVM):
-    def __init__(self):
-        self.url = (
+    def __init__(self) -> None:
+        """
+        Initializes the RegData class with a URL for registration data.
+        """
+        self.url: str = (
             "https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/cad_cia_aberta.csv"
         )
 
     def get_data(self) -> pd.DataFrame:
         """
-        Registration data of publicly traded companies, such as CNPJ, registration date, and registration status.
-        """
-        r = requests.get(self.url)
-        lines = r.text.split("\n")
-        lines = [line.split(";") for line in lines]
-        df = pd.DataFrame(data=lines[1:-1], columns=lines[0])
+        Retrieves registration data for publicly traded companies.
 
+        The data includes information such as CNPJ, registration date, and registration status.
+
+        Returns:
+            pd.DataFrame: A DataFrame containing the registration data.
+        """
+        r: requests.Response = requests.get(self.url)
+        lines: List[str] = r.text.split("\n")
+        split_lines: List[List[str]] = [line.split(";") for line in lines]
+        df: pd.DataFrame = pd.DataFrame(data=split_lines[1:-1], columns=split_lines[0])
         return df
 
 
 class FCA(DataCVM):
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Initializes the FCA class with URLs and filename templates specific to FCA data.
+        """
         self.url_dataset: str = "https://dados.cvm.gov.br/dataset/cia_aberta-doc-fca"
         self.base_url: str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/FCA/DADOS/"
         self.zip_template: str = "fca_cia_aberta_{year}.zip"
-        self.datasets: dict[str, str] = self.find_dataset("fca_cia_aberta")
+        self.datasets: Dict[str, str] = self.find_dataset("fca_cia_aberta")
 
     def get_data(
         self,
@@ -137,24 +200,28 @@ class FCA(DataCVM):
         end: int,
     ) -> pd.DataFrame:
         """
-        Retrieves documents related to the Cadastral Form (an electronic document, since 2010,
-        for periodic and occasional submission, as provided in Article 22, Item I, of CVM Resolution No. 80/22).
+        Retrieves FCA data for the specified dataset and year range.
 
-        ## Parameters
+        Parameters:
+            dataset (Literal[...]): A string containing one of the allowed dataset keys.
+            start (int): The starting year (inclusive) – minimum year 2010.
+            end (int): The ending year (exclusive).
 
-          1. **dataset:** a string containing one of the values in `self.datasets`.
-          2. **start:** an integer representing the starting year (inclusive) - minimum year 2010.
-          3. **end:** an integer representing the ending year (exclusive).
+        Returns:
+            pd.DataFrame: A DataFrame containing the concatenated FCA data.
         """
         return super().get_data(dataset, start, end)
 
 
 class FRE(DataCVM):
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Initializes the FRE class with URLs and filename templates specific to FRE data.
+        """
         self.url_dataset: str = "https://dados.cvm.gov.br/dataset/cia_aberta-doc-fre"
         self.base_url: str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/FRE/DADOS/"
         self.zip_template: str = "fre_cia_aberta_{year}.zip"
-        self.datasets: dict[str, str] = self.find_dataset("fre_cia_aberta")
+        self.datasets: Dict[str, str] = self.find_dataset("fre_cia_aberta")
 
     def get_data(
         self,
@@ -223,23 +290,27 @@ class FRE(DataCVM):
         end: int,
     ) -> pd.DataFrame:
         """
-        Retrieves documents related to the FRE Form (an electronic document, since 2010,
-        for periodic and occasional submission, as provided in Article 22, Item I, of CVM Resolution No. 80/22).
+        Retrieves FRE data for the specified dataset and year range.
 
-        ## Parameters
+        Parameters:
+            dataset (Literal[...]): A string containing one of the allowed dataset keys.
+            start (int): The starting year (inclusive) – minimum year 2010.
+            end (int): The ending year (exclusive).
 
-          1. **dataset:** a string containing one of the values in `self.datasets`.
-          2. **start:** an integer representing the starting year (inclusive) - minimum year 2010.
-          3. **end:** an integer representing the ending year (exclusive).
+        Returns:
+            pd.DataFrame: A DataFrame containing the concatenated FRE data.
         """
         return super().get_data(dataset, start, end)
 
 
 class IPE(DataCVM):
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Initializes the IPE class with URLs and filename templates specific to IPE data.
+        """
         self.base_url: str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/IPE/DADOS/"
         self.zip_template: str = "ipe_cia_aberta_{year}.zip"
-        self.datasets: dict[str, str] = {"original": "ipe_cia_aberta_{year}.csv"}
+        self.datasets: Dict[str, str] = {"original": "ipe_cia_aberta_{year}.csv"}
 
     def get_data(
         self,
@@ -247,22 +318,26 @@ class IPE(DataCVM):
         end: int,
     ) -> pd.DataFrame:
         """
-        The dataset provides unstructured documents from companies
-        (periodic and occasional IPE filings) submitted in the last five years.
+        Retrieves IPE data (unstructured company filings) for the specified year range.
 
-        ## Parameters
+        Parameters:
+            start (int): The starting year (inclusive) – minimum year 2003.
+            end (int): The ending year (exclusive).
 
-          1. **start:** an integer representing the starting year (inclusive) - minimum year: 2003.
-          2. **end:** an integer representing the ending year (exclusive).
+        Returns:
+            pd.DataFrame: A DataFrame containing the concatenated IPE data.
         """
         return super().get_data("original", start, end)
 
 
 class ITR(DataCVM):
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Initializes the ITR class with URLs and filename templates specific to ITR data.
+        """
         self.base_url: str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/ITR/DADOS/"
         self.zip_template: str = "itr_cia_aberta_{year}.zip"
-        self.datasets: dict[str, str] = {
+        self.datasets: Dict[str, str] = {
             "original": "itr_cia_aberta_{year}.csv",
             "bpa_con": "itr_cia_aberta_BPA_con_{year}.csv",
             "bpa_ind": "itr_cia_aberta_BPA_ind_{year}.csv",
@@ -309,23 +384,27 @@ class ITR(DataCVM):
         end: int,
     ) -> pd.DataFrame:
         """
-        The Quarterly Information Form (ITR) is an electronic document submitted periodically,
-        as required by Article 22, item V, of CVM Resolution No. 80/22.
+        Retrieves ITR data for the specified dataset and year range.
 
-        ## Parameters
+        Parameters:
+            dataset (Literal[...]): A string containing one of the allowed dataset keys.
+            start (int): The starting year (inclusive) – minimum year 2011.
+            end (int): The ending year (exclusive).
 
-          1. **dataset:** a string containing one of the values in `self.datasets`.
-          2. **start:** an integer representing the starting year (inclusive) - minimum year 2011.
-          3. **end:** an integer representing the ending year (exclusive).
+        Returns:
+            pd.DataFrame: A DataFrame containing the concatenated ITR data.
         """
         return super().get_data(dataset, start, end)
 
 
 class VLMO(DataCVM):
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Initializes the VLMO class with URLs and filename templates specific to VLMO data.
+        """
         self.base_url: str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/VLMO/DADOS/"
         self.zip_template: str = "vlmo_cia_aberta_{year}.zip"
-        self.datasets: dict[str, str] = {
+        self.datasets: Dict[str, str] = {
             "original": "vlmo_cia_aberta_{year}.csv",
             "consolidado": "vlmo_cia_aberta_con_{year}.csv",
         }
@@ -337,25 +416,27 @@ class VLMO(DataCVM):
         end: int,
     ) -> pd.DataFrame:
         """
-        Traded and Held Securities are periodically submitted information to the CVM,
-        as required by Article 11 of CVM Resolution No. 44.
+        Retrieves VLMO data for the specified dataset and year range.
 
-        ## Parameters
+        Parameters:
+            dataset (Literal["original", "consolidado"]): A string containing one of the allowed dataset keys.
+            start (int): The starting year (inclusive) – minimum year 2020.
+            end (int): The ending year (exclusive).
 
-          1. **dataset:** a string containing one of the values in `self.datasets`.
-
-          2. **start:** an integer representing the starting year (inclusive) - minimum year 2020.
-
-          3. **end:** an integer representing the ending year (exclusive).
+        Returns:
+            pd.DataFrame: A DataFrame containing the concatenated VLMO data.
         """
         return super().get_data(dataset, start, end)
 
 
 class ICBGC(DataCVM):
-    def __init__(self):
-        self.base_url = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/CGVN/DADOS/"
+    def __init__(self) -> None:
+        """
+        Initializes the ICBGC class with URLs and filename templates specific to ICBGC data.
+        """
+        self.base_url: str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/CGVN/DADOS/"
         self.zip_template: str = "cgvn_cia_aberta_{year}.zip"
-        self.datasets: dict[str, str] = {
+        self.datasets: Dict[str, str] = {
             "original": "cgvn_cia_aberta_{year}.csv",
             "praticas": "cgvn_cia_aberta_praticas_{year}.csv",
         }
@@ -367,26 +448,28 @@ class ICBGC(DataCVM):
         end: int,
     ) -> pd.DataFrame:
         """
-        The Governance Code Report (ICBGC) is an electronic document
-        submitted periodically, as required by Article 32 of CVM Resolution No. 80.
+        Retrieves ICBGC data for the specified dataset and year range.
 
-        ## Parameters
+        Parameters:
+            dataset (Literal["original", "praticas"]): A string containing one of the allowed dataset keys.
+            start (int): The starting year (inclusive) – minimum year 2020.
+            end (int): The ending year (exclusive).
 
-          1. **dataset:** a string containing one of the values in `self.datasets`.
-
-          2. **start:** an integer representing the starting year (inclusive) - minimum year 2020.
-
-          3. **end:** an integer representing the ending year (exclusive).
+        Returns:
+            pd.DataFrame: A DataFrame containing the concatenated ICBGC data.
         """
         return super().get_data(dataset, start, end)
 
 
 class DFP(DataCVM):
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Initializes the DFP class with URLs and filename templates specific to DFP data.
+        """
         self.base_url: str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/DADOS/"
         self.zip_template: str = "dfp_cia_aberta_{year}.zip"
-        self.datasets: dict[str, str] = {
-            "orgininal": "dfp_cia_aberta_{year}.csv",
+        self.datasets: Dict[str, str] = {
+            "original": "dfp_cia_aberta_{year}.csv",
             "bpa_con": "dfp_cia_aberta_BPA_con_{year}.csv",
             "bpa_ind": "dfp_cia_aberta_BPA_ind_{year}.csv",
             "bpp_con": "dfp_cia_aberta_BPP_con_{year}.csv",
@@ -425,22 +508,21 @@ class DFP(DataCVM):
             "dre_ind",
             "dva_con",
             "dva_ind",
-            "orgininal",
+            "original",
             "parecer",
         ],
         start: int,
         end: int,
     ) -> pd.DataFrame:
         """
-        The Standardized Financial Statements Form (DFP) is an electronic document submitted periodically,
-        as required by Article 22, item IV, of CVM Resolution No. 80/22.
+        Retrieves DFP data for the specified dataset and year range.
 
-        ## Parameters
+        Parameters:
+            dataset (Literal[...]): A string containing one of the allowed dataset keys.
+            start (int): The starting year (inclusive) – minimum year 2010.
+            end (int): The ending year (exclusive).
 
-          1. **dataset:** a string containing one of the values in `self.datasets`.
-
-          2. **start:** an integer representing the starting year (inclusive) - minimum year 2010.
-
-          3. **end:** an integer representing the ending year (exclusive).
+        Returns:
+            pd.DataFrame: A DataFrame containing the concatenated DFP data.
         """
         return super().get_data(dataset, start, end)
