@@ -124,9 +124,9 @@ class FCA(DataCVM):
 
         ## Parameters
 
-          - **dataset:** a string containing one of the values in `self.datasets`.
-          - **start:** an integer representing the starting year (inclusive) - minimum year 2010.
-          - **end:** an integer representing the ending year (exclusive).
+          1. **dataset:** a string containing one of the values in `self.datasets`.
+          2. **start:** an integer representing the starting year (inclusive) - minimum year 2010.
+          3. **end:** an integer representing the ending year (exclusive).
         """
         return super().get_data(dataset, start, end)
 
@@ -210,9 +210,9 @@ class FRE(DataCVM):
 
         ## Parameters
 
-          - **dataset:** a string containing one of the values in `self.datasets`.
-          - **start:** an integer representing the starting year (inclusive) - minimum year 2010.
-          - **end:** an integer representing the ending year (exclusive).
+          1. **dataset:** a string containing one of the values in `self.datasets`.
+          2. **start:** an integer representing the starting year (inclusive) - minimum year 2010.
+          3. **end:** an integer representing the ending year (exclusive).
         """
         return super().get_data(dataset, start, end)
 
@@ -234,8 +234,8 @@ class IPE(DataCVM):
 
         ## Parameters
 
-          - **start:** an integer representing the starting year (inclusive) - minimum year: 2003.
-          - **end:** an integer representing the ending year (exclusive).
+          1. **start:** an integer representing the starting year (inclusive) - minimum year: 2003.
+          2. **end:** an integer representing the ending year (exclusive).
         """
         return super().get_data("original", start, end)
 
@@ -296,16 +296,41 @@ class ITR(DataCVM):
 
         ## Parameters
 
-          - **dataset:** a string containing one of the values in `self.datasets`.
-          - **start:** an integer representing the starting year (inclusive) - minimum year 2011.
-          - **end:** an integer representing the ending year (exclusive).
+          1. **dataset:** a string containing one of the values in `self.datasets`.
+          2. **start:** an integer representing the starting year (inclusive) - minimum year 2011.
+          3. **end:** an integer representing the ending year (exclusive).
         """
         return super().get_data(dataset, start, end)
 
 
 class VLMO(DataCVM):
     def __init__(self):
-        self.base_url = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/VLMO/DADOS/"
+        self.base_url: str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/VLMO/DADOS/"
+        self.zip_template: str = "vlmo_cia_aberta_{year}.zip"
+        self.datasets: dict[str, str] = {
+            "original": "vlmo_cia_aberta_{year}.csv",
+            "consolidado": "vlmo_cia_aberta_con_{year}.csv",
+        }
+
+    def get_data(
+        self,
+        dataset: Literal["original", "consolidado"],
+        start: int,
+        end: int,
+    ) -> pd.DataFrame:
+        """
+        Traded and Held Securities are periodically submitted information to the CVM,
+        as required by Article 11 of CVM Resolution No. 44.
+
+        ## Parameters
+
+          1. **dataset:** a string containing one of the values in `self.datasets`.
+
+          2. **start:** an integer representing the starting year (inclusive) - minimum year 2020.
+
+          3. **end:** an integer representing the ending year (exclusive).
+        """
+        return super().get_data(dataset, start, end)
 
 
 class ICBGC(DataCVM):
