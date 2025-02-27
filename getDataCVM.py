@@ -28,6 +28,7 @@ class DataCVM:
                     key = text.removeprefix(data_type.removesuffix("aberta"))
                     value = f"{data_type}_{key}_" + "{year}.csv"
                 dataset[key] = value
+        dataset["original"] = data_type + "_{year}.csv"
         return dataset
 
     def download_data(
@@ -103,6 +104,7 @@ class FCA(DataCVM):
     def get_data(
         self,
         dataset: Literal[
+            "original",
             "auditor",
             "canal_divulgacao",
             "departamento_acionistas",
@@ -117,12 +119,12 @@ class FCA(DataCVM):
         end: int,
     ) -> pd.DataFrame:
         """
-        Retrieves documents related to the Cadastral Form (an electronic document,
+        Retrieves documents related to the Cadastral Form (an electronic document, since 2010,
         for periodic and occasional submission, as provided in Article 22, Item I, of CVM Resolution No. 80/22).
 
         Parameters:
           - dataset: a string containing one of the values in `self.datasets`.
-          - start: an integer representing the starting year (inclusive).
+          - start: an integer representing the starting year (inclusive) - minimum year.
           - end: an integer representing the ending year (exclusive).
         """
         return super().get_data(dataset, start, end)
@@ -138,6 +140,7 @@ class FRE(DataCVM):
     def get_data(
         self,
         dataset: Literal[
+            "original",
             "responsavel",
             "auditor",
             "auditor_responsavel",
@@ -201,12 +204,12 @@ class FRE(DataCVM):
         end: int,
     ) -> pd.DataFrame:
         """
-        Retrieves documents related to the FRE Form (an electronic document,
+        Retrieves documents related to the FRE Form (an electronic document, since 2010,
         for periodic and occasional submission, as provided in Article 22, Item I, of CVM Resolution No. 80/22).
 
         Parameters:
           - dataset: a string containing one of the values in `self.datasets`.
-          - start: an integer representing the starting year (inclusive).
+          - start: an integer representing the starting year (inclusive) - minimum year: 2010.
           - end: an integer representing the ending year (exclusive).
         """
         return super().get_data(dataset, start, end)
@@ -214,7 +217,24 @@ class FRE(DataCVM):
 
 class IPE(DataCVM):
     def __init__(self):
-        self.url_base = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/IPE/DADOS/"
+        self.base_url: str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/IPE/DADOS/"
+        self.zip_template: str = "ipe_cia_aberta_{year}.zip"
+        self.datasets: dict[str, str] = {"original": "ipe_cia_aberta_{year}.csv"}
+
+    def get_data(
+        self,
+        start: int,
+        end: int,
+    ) -> pd.DataFrame:
+        """
+        O conjunto de dados disponibiliza os documentos não estruturados
+        de companhias (Periódicos e eventuais do IPE) entregues nos últimos cinco anos.
+
+        Parameters:
+          - start: an integer representing the starting year (inclusive) - minimum year: 2003.
+          - end: an integer representing the ending year (exclusive).
+        """
+        return super().get_data("original", start, end)
 
 
 class ITR(DataCVM):
