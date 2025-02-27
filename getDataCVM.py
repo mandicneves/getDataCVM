@@ -7,107 +7,97 @@ from bs4 import BeautifulSoup
 
 
 class DataCVM:
-    def find_dataset(self, tipo):
-
-        if "fca" in tipo:
-            limitador = "("
-        elif "fre" in tipo:
-            limitador = ":"
-        r = requests.get(self.url_dataset)
-        html = BeautifulSoup(r.text, "html.parser")
+    def find_dataset(self, data_type: str) -> dict[str, str]:
+        if "fca" in data_type:
+            delimiter = "("
+        elif "fre" in data_type:
+            delimiter = ":"
+        response = requests.get(self.url_dataset)
+        html = BeautifulSoup(response.text, "html.parser")
         li_strong = [li for li in html.find_all("li") if li.find("strong")]
         dataset = dict()
         for li in li_strong:
-            texto = li.get_text(strip=True)
-
-            if texto.startswith(tipo.removesuffix("aberta")):
-
-                limite_superior = texto.find(limitador)
-                texto = texto[:limite_superior].replace("(anteriormente", "")
-
-                if tipo in texto:
-                    chave = texto.removeprefix(tipo + "_")
-                    valor = f"{texto}_" + "{ano}.csv"
-
+            text = li.get_text(strip=True)
+            if text.startswith(data_type.removesuffix("aberta")):
+                upper_limit = text.find(delimiter)
+                text = text[:upper_limit].replace("(anteriormente", "")
+                if data_type in text:
+                    key = text.removeprefix(data_type + "_")
+                    value = f"{text}_" + "{year}.csv"
                 else:
-                    chave = texto.removeprefix(tipo.removesuffix("aberta"))
-                    valor = f"{tipo}_{chave}_" + "{ano}.csv"
-
-                dataset[chave] = valor
-
-        # return dict(sorted(dataset.items()))
+                    key = text.removeprefix(data_type.removesuffix("aberta"))
+                    value = f"{data_type}_{key}_" + "{year}.csv"
+                dataset[key] = value
         return dataset
 
     def download_data(
-        self, inicio: int, fim: int, url_base: str, zip_template: str, csv_template: str
+        self, start: int, end: int, base_url: str, zip_template: str, csv_template: str
     ) -> pd.DataFrame:
         """
-        Baixa os dados para os anos especificados usando templates para o nome do ZIP e do CSV.
+        Downloads data for the specified years using templates for the ZIP and CSV filenames.
         """
-        lista_dados = []
-        for ano in range(inicio, fim):
-            zip_filename = zip_template.format(ano=ano)
-            url = url_base + zip_filename
+        data_list = []
+        for year in range(start, end):
+            zip_filename = zip_template.format(year=year)
+            url = base_url + zip_filename
 
             try:
                 r = requests.get(url, timeout=10)
                 r.raise_for_status()
 
-                with zipfile.ZipFile(BytesIO(r.content)) as myzip:
-                    csv_filename = csv_template.format(ano=ano)
-                    with myzip.open(csv_filename) as file:
+                with zipfile.ZipFile(BytesIO(r.content)) as zip_file:
+                    csv_filename = csv_template.format(year=year)
+                    with zip_file.open(csv_filename) as file:
                         lines = file.readlines()
                         lines = [line.strip().decode("ISO-8859-1") for line in lines]
                         lines = [line.split(";") for line in lines]
                         df = pd.DataFrame(data=lines[1:], columns=lines[0])
-                        lista_dados.append(df)
-                        print(f"Leitura do ano {ano} finalizada.")
+                        data_list.append(df)
+                        print(f"Finished reading data for year {year}.")
 
             except requests.exceptions.RequestException as e:
-                print(f"Erro ao baixar dados de {ano}: {e}")
+                print(f"Error downloading data for year {year}: {e}")
             except zipfile.BadZipFile:
-                print(f"Erro ao descompactar o arquivo ZIP de {ano}.")
+                print(f"Error unzipping file for year {year}.")
             except Exception as e:
-                print(f"Erro inesperado no ano {ano}: {e}")
+                print(f"Unexpected error for year {year}: {e}")
 
-        return (
-            pd.concat(lista_dados, ignore_index=True) if lista_dados else pd.DataFrame()
-        )
+        return pd.concat(data_list, ignore_index=True) if data_list else pd.DataFrame()
 
     def get_data(
         self,
-        dataset: list[str],  # Aqui, usaremos o Literal nas classes filhas
-        inicio: int,
-        fim: int,
+        dataset: str,
+        start: int,
+        end: int,
     ) -> pd.DataFrame:
         """
-        Método genérico para obter dados. As classes filhas devem definir:
-          - self.url_base
+        Generic method to retrieve data. Subclasses must define:
+          - self.base_url
           - self.zip_template
-          - self.datasets (um dicionário com as chaves dos datasets disponíveis)
+          - self.datasets (a dictionary with the available dataset keys)
 
-        Parâmetros:
-          - dataset: nome do dataset a ser baixado.
-          - inicio: ano inicial (inclusivo).
-          - fim: ano final (exclusivo).
+        Parameters:
+          - dataset: name of the dataset to download.
+          - start: starting year (inclusive).
+          - end: ending year (exclusive).
         """
         if not hasattr(self, "datasets"):
-            raise AttributeError("Atributo 'datasets' não definido na classe.")
+            raise AttributeError("Attribute 'datasets' not defined in the class.")
         if dataset not in self.datasets:
             raise ValueError(
-                f"Dataset '{dataset}' não encontrado. Escolha entre: {list(self.datasets.keys())}"
+                f"Dataset '{dataset}' not found. Choose from: {list(self.datasets.keys())}"
             )
         csv_template = self.datasets[dataset]
         return self.download_data(
-            inicio, fim, self.url_base, self.zip_template, csv_template
+            start, end, self.base_url, self.zip_template, csv_template
         )
 
 
 class FCA(DataCVM):
     def __init__(self):
         self.url_dataset: str = "https://dados.cvm.gov.br/dataset/cia_aberta-doc-fca"
-        self.url_base: str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/FCA/DADOS/"
-        self.zip_template: str = "fca_cia_aberta_{ano}.zip"
+        self.base_url: str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/FCA/DADOS/"
+        self.zip_template: str = "fca_cia_aberta_{year}.zip"
         self.datasets: dict[str, str] = self.find_dataset("fca_cia_aberta")
 
     def get_data(
@@ -123,27 +113,26 @@ class FCA(DataCVM):
             "pais_estrangeiro_negociacao",
             "valor_mobiliario",
         ],
-        inicio: int,
-        fim: int,
+        start: int,
+        end: int,
     ) -> pd.DataFrame:
         """
-        Obtém documentos referentes ao Formulário Cadastral (é um documento eletrônico,
-        de encaminhamento periódico e eventual, previsto no artigo 22, inciso I, da Resolução CVM nº 80/22)
+        Retrieves documents related to the Cadastral Form (an electronic document,
+        for periodic and occasional submission, as provided in Article 22, Item I, of CVM Resolution No. 80/22).
 
-        ## Parâmetros
-
-        - **dataset**: string contendo um dos valores em `self.datasets`.
-        - **inicio**: inteiro referente ao ano inicial (inclusivo).
-        - **fim**: inteiro referente ao ano final (exclusivo).
+        Parameters:
+          - dataset: a string containing one of the values in `self.datasets`.
+          - start: an integer representing the starting year (inclusive).
+          - end: an integer representing the ending year (exclusive).
         """
-        return super().get_data(dataset, inicio, fim)
+        return super().get_data(dataset, start, end)
 
 
 class FRE(DataCVM):
     def __init__(self):
         self.url_dataset: str = "https://dados.cvm.gov.br/dataset/cia_aberta-doc-fre"
-        self.url_base: str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/FRE/DADOS/"
-        self.zip_template: str = "fre_cia_aberta_{ano}.zip"
+        self.base_url: str = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/FRE/DADOS/"
+        self.zip_template: str = "fre_cia_aberta_{year}.zip"
         self.datasets: dict[str, str] = self.find_dataset("fre_cia_aberta")
 
     def get_data(
@@ -208,20 +197,19 @@ class FRE(DataCVM):
             "empregado_local_declaracao_raca",
             "empregado_local_faixa_etaria",
         ],
-        inicio: int,
-        fim: int,
+        start: int,
+        end: int,
     ) -> pd.DataFrame:
         """
-        Obtém documentos referentes ao Formulário Cadastral (é um documento eletrônico,
-        de encaminhamento periódico e eventual, previsto no artigo 22, inciso I, da Resolução CVM nº 80/22)
+        Retrieves documents related to the FRE Form (an electronic document,
+        for periodic and occasional submission, as provided in Article 22, Item I, of CVM Resolution No. 80/22).
 
-        ## Parâmetros
-
-        - **dataset**: string contendo um dos valores em `self.datasets`.
-        - **inicio**: inteiro referente ao ano inicial (inclusivo).
-        - **fim**: inteiro referente ao ano final (exclusivo).
+        Parameters:
+          - dataset: a string containing one of the values in `self.datasets`.
+          - start: an integer representing the starting year (inclusive).
+          - end: an integer representing the ending year (exclusive).
         """
-        return super().get_data(dataset, inicio, fim)
+        return super().get_data(dataset, start, end)
 
 
 class IPE(DataCVM):
