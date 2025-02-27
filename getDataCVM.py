@@ -335,7 +335,32 @@ class VLMO(DataCVM):
 
 class ICBGC(DataCVM):
     def __init__(self):
-        self.base_url = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/ICBGC/DADOS/"
+        self.base_url = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/CGVN/DADOS/"
+        self.zip_template: str = "cgvn_cia_aberta_{year}.zip"
+        self.datasets: dict[str, str] = {
+            "original": "cgvn_cia_aberta_{year}.csv",
+            "praticas": "cgvn_cia_aberta_praticas_{year}.csv",
+        }
+
+    def get_data(
+        self,
+        dataset: Literal["original", "praticas"],
+        start: int,
+        end: int,
+    ) -> pd.DataFrame:
+        """
+        The Governance Code Report (ICBGC) is an electronic document
+        submitted periodically, as required by Article 32 of CVM Resolution No. 80.
+
+        ## Parameters
+
+          1. **dataset:** a string containing one of the values in `self.datasets`.
+
+          2. **start:** an integer representing the starting year (inclusive) - minimum year 2020.
+
+          3. **end:** an integer representing the ending year (exclusive).
+        """
+        return super().get_data(dataset, start, end)
 
 
 class DFP(DataCVM):
