@@ -1,1 +1,1 @@
-from getDataCVM import *
+from .getDataCVM import *
