@@ -1,14 +1,16 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="data_cvm",
+    name="getDataCVM",
     version="0.1.0",
-    author="Your Name",
-    author_email="your.email@example.com",
+    author=" Marcelo Neves Lira",
+    author_email="mandicneves@gmail.com",
     description="A package for downloading and processing CVM data.",
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/data_cvm",
+    include_package_data=True,
+    py_modules=["getDataCVM"],
+    platforms="any",
     packages=find_packages(),
     install_requires=["requests", "pandas", "beautifulsoup4"],
     classifiers=[
@@ -17,4 +19,5 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.8",
+    url="https://github.com/mandicneves/getDataCVM",
 )
