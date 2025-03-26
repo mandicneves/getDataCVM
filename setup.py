@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="getDataCVM",
-    version="0.1.0",
+    version="0.2.0",
     author=" Marcelo Neves Lira",
     author_email="mandicneves@gmail.com",
     description="A package for downloading and processing CVM data.",
