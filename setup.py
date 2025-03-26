@@ -8,10 +8,8 @@ setup(
     description="A package for downloading and processing CVM data.",
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
-    include_package_data=True,
-    py_modules=["getDataCVM"],
     platforms="any",
-    packages=find_packages(),
+    packages=["getDataCVM"],
     install_requires=["requests", "pandas", "beautifulsoup4"],
     classifiers=[
         "Programming Language :: Python :: 3",
